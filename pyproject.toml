@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mopplot2chelper"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "pytest>=9.0.3",
+]
+
+[dependency-groups]
+dev = [
+    "black>=26.5.1",
+    "pylint>=4.0.5",
+    "pyright>=1.1.409",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mopplot"]
+
+[tool.black]
+target-version = ["py313"]
+
+[tool.pylint]
+max-line-length = 120
+disable = [
+    "missing-function-docstring",
+    "missing-module-docstring",
+    "no-else-continue",
+    "no-else-return",
+    "invalid-name",
+    "too-few-public-methods",
+    "unnecessary-ellipsis",
+    "unnecessary-pass",
+]
