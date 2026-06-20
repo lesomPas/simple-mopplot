@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "mopplot2chelper"
-version = "0.1.0"
+version = "1.0.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
@@ -34,6 +34,7 @@ disable = [
     "no-else-return",
     "invalid-name",
     "too-few-public-methods",
+    "too-many-arguments",
     "unnecessary-ellipsis",
     "unnecessary-pass",
 ]

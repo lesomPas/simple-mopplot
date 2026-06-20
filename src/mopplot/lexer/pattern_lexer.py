@@ -4,7 +4,7 @@
 from typing import Protocol, Iterator
 
 from mopplot.exceptions import PatternLexerException
-from .token import ParamKind, Param
+from .param import ParamKind, Param
 
 
 class PatternLexer(Protocol):
@@ -22,7 +22,6 @@ class DefaultPatternLexer:
     Recognizes three token types:
       - Required parameters: enclosed in custom delimiters
       - Optional blocks: enclosed in custom delimiters
-      - Plain identifiers: any sequence outside delimiters
 
     Supports nested brackets using a stack.
     """
@@ -31,12 +30,10 @@ class DefaultPatternLexer:
         self,
         required_char: tuple[str, str] = ("<", ">"),
         optional_char: tuple[str, str] = ("[", "]"),
-        identifier_kind: ParamKind = ParamKind.Identifier,
     ):
         """
         :required_char: A pair (open, close) for required parameters, e.g. ('<', '>').
         :optional_char: A pair (open, close) for optional blocks, e.g. ('[', ']').
-        :identifier_kind: The ParamKind for plain identifiers (defaults to Identifier).
 
         Raises:
             PatternLexerException: If any delimiter is not a single character.
@@ -55,11 +52,9 @@ class DefaultPatternLexer:
         self.optional_char_open = optional_char[0]
         self.optional_char_close = optional_char[1]
 
-        self.identifier_kind = identifier_kind
-
     def tokenize(self, pattern: str) -> Iterator[Param]:
         """
-        Yield Param objects for each token in the pattern.
+        List of param objects for each token in the pattern.
 
         Raises:
             PatternLexerException: If brackets are unbalanced or unclosed.
@@ -146,6 +141,6 @@ class DefaultPatternLexer:
             ptr += 1
         lexeme = pattern[start:ptr]
         return (
-            Param(kind=self.identifier_kind, lexeme=lexeme, start=start, end=ptr),
+            Param(kind=ParamKind.Required, lexeme=lexeme, start=start, end=ptr),
             ptr,
         )

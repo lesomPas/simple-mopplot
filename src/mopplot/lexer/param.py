@@ -8,7 +8,6 @@ from enum import StrEnum
 class ParamKind(StrEnum):
     """Type of a lexical parameter"""
 
-    Identifier = "identifier"
     Required = "required"
     Optional = "optional"
 

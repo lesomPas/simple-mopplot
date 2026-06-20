@@ -1,5 +1,5 @@
 # created by lesomras on 2026-5-30
-from .token import (
+from .param import (
     ParamKind,
     Param,
 )
