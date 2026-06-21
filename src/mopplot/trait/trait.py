@@ -160,13 +160,13 @@ class Trait(metaclass=_TraitMetaclass):
 
         unknown = kwargs.keys() - fields.keys()
         if unknown:
-            match self.trait_config.extra_mode: # type: ignore
+            match self.trait_config.extra_mode:  # type: ignore
                 case ExtraMode.Forbid:
                     raise TraitException(f"Unknown fields: {', '.join(unknown)}")
                 case ExtraMode.Allow:
                     for k in unknown:
                         v = kwargs[k]
-                        self.__trait_extra__[k] = v # type: ignore
+                        self.__trait_extra__[k] = v  # type: ignore
                         super().__setattr__(k, v)
                 case ExtraMode.Ignore:
                     pass
@@ -197,15 +197,11 @@ class Trait(metaclass=_TraitMetaclass):
 
         self.trait_init()
 
-
-    def trait_init(self) -> None:
-        ...
+    def trait_init(self) -> None: ...
 
     @classmethod
     def provide_validator(
-        cls,
-        *,
-        enable_generator: bool = True
+        cls, *, enable_generator: bool = True
     ) -> Callable[[dict[str, Any]], None]:
         if cls is Trait:
             raise NotImplemented
@@ -256,11 +252,11 @@ class Trait(metaclass=_TraitMetaclass):
 
             field.validate_value(value)
         else:
-            match self.trait_config.extra_mode: # type: ignore
+            match self.trait_config.extra_mode:  # type: ignore
                 case ExtraMode.Forbid:
                     raise TraitException(f"Unknown field: {name}")
                 case ExtraMode.Allow:
-                    self.__trait_extra__[name] = value # type: ignore
+                    self.__trait_extra__[name] = value  # type: ignore
                 case ExtraMode.Ignore:
                     pass
 

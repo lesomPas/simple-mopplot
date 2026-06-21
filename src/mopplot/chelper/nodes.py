@@ -45,9 +45,7 @@ class Integer(Node):
 @chelper("integer_with_unit")
 class IntegerWithUnit(Node):
     type: str = "INTEGER_WITH_UNIT"
-    units: list = field(
-        validator=seq_validator(SequenceItem.provide_validator())
-    )
+    units: list = field(validator=seq_validator(SequenceItem.provide_validator()))
 
 
 @chelper("item")
@@ -66,8 +64,7 @@ class NamespaceId(Node):
     key: str = field(omissible=True)
     ignoreError: bool = False
     contents: list = field(
-        validator=seq_validator(ContentsItem.provide_validator()),
-        omissible=True
+        validator=seq_validator(ContentsItem.provide_validator()), omissible=True
     )
 
     @trait_validator
@@ -82,8 +79,7 @@ class NormalId(Node):
     key: str = field(omissible=True)
     ignoreError: bool = False
     contents: list = field(
-        validator=seq_validator(SequenceItem.provide_validator()),
-        omissible=True
+        validator=seq_validator(SequenceItem.provide_validator()), omissible=True
     )
 
     @trait_validator
@@ -105,6 +101,7 @@ class RelativeFloat(Node):
 
 # Repeat 我再考虑考虑
 
+
 @chelper("string")
 class String(Node):
     type: str = "STRING"
@@ -124,13 +121,9 @@ class TargetSelector(Node):
 @chelper("text")
 class Text(Node):
     type: str = "TEXT"
-    data: dict = field(
-        validator=SequenceItem.provide_validator()
-    )
+    data: dict = field(validator=SequenceItem.provide_validator())
 
 
 @chelper("range")
 class Range(Node):
     type: str = "RANGE"
-
-

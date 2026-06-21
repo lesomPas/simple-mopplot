@@ -8,13 +8,14 @@ from dataclasses import dataclass
 
 from mopplot.lexer import Param, ParamKind, PatternLexer, DefaultPatternLexer
 
-
 START = "start"
 LF = "LF"
 
 
 class PatternTree:
-    def __init__(self, name: str, has_lf: bool = False, next_nonterm: Optional[str] = None):
+    def __init__(
+        self, name: str, has_lf: bool = False, next_nonterm: Optional[str] = None
+    ):
         self.name = name
         self.has_lf = has_lf
         self.next_nonterm = next_nonterm
@@ -91,9 +92,9 @@ class PatternTree:
 
     @property
     def fingerprint(self) -> str:
-        if self._cache_fingerprint is not None:
-            return self._cache_fingerprint
-        return self._compute_fingerprint()
+        if self._cache_fingerprint is None:
+            self._cache_fingerprint = self._compute_fingerprint()
+        return self._cache_fingerprint
 
 
 @dataclass(slots=True)
@@ -103,7 +104,9 @@ class SyntaxResult:
 
 
 class AstTreeBuilder:
-    def __init__(self, data: dict[str, list], lexer: PatternLexer = DefaultPatternLexer()):
+    def __init__(
+        self, data: dict[str, list], lexer: PatternLexer = DefaultPatternLexer()
+    ):
         self.data = data
         self.lexer = lexer
 
@@ -114,7 +117,9 @@ class AstTreeBuilder:
         rename_mapping = {}
         for name, collision in collisions.items():
             fingerprints = self.get_fingerprints(collision)
-            rename_mapping[name] = {fp: f"{name}'{i}" for i, fp in enumerate(fingerprints, start=1)}
+            rename_mapping[name] = {
+                fp: f"{name}'{i}" for i, fp in enumerate(fingerprints, start=1)
+            }
 
         original_ast = self._build_ast(nonterms, rename_mapping)
 
@@ -124,7 +129,9 @@ class AstTreeBuilder:
         )
 
     @staticmethod
-    def _build_ast(nonterms: dict[str, PatternTree], rename_mapping: dict[str, dict[str, str]]) -> dict[str, list[str]]:
+    def _build_ast(
+        nonterms: dict[str, PatternTree], rename_mapping: dict[str, dict[str, str]]
+    ) -> dict[str, list[str]]:
         def get_name(node: PatternTree) -> str:
             if node.name not in rename_mapping:
                 return node.name
@@ -162,7 +169,10 @@ class AstTreeBuilder:
 
             if node.next_nonterm and node.next_nonterm != LF:
                 target = node.next_nonterm
-                if target not in compiled_nonterm and target not in need_compiling_nonterm:
+                if (
+                    target not in compiled_nonterm
+                    and target not in need_compiling_nonterm
+                ):
                     need_compiling_nonterm.append(target)
                 for entry in nonterm_entry[target]:
                     add_edge(node_name, entry)
@@ -178,26 +188,30 @@ class AstTreeBuilder:
         def compile_nonterm(nonterm: PatternTree):
             for head_node in nonterm.get_children():
                 traverse(head_node)
-            compiled_nonterm.append(nonterm)
+            compiled_nonterm.append(nonterm.name)
 
         # 循环检测我不做了
         while len(need_compiling_nonterm) != 0:
             nonterm_name = need_compiling_nonterm.pop(0)
             if nonterm_name not in nonterms:
-                raise ValueError # 再等等
+                raise ValueError  # 再等等
             compile_nonterm(nonterms[nonterm_name])
 
         return edges
 
     @staticmethod
-    def original_tree(nonterms: dict[str, list], lexer: PatternLexer) -> dict[str, PatternTree]:
+    def original_tree(
+        nonterms: dict[str, list], lexer: PatternLexer
+    ) -> dict[str, PatternTree]:
         result = {}
         for nonterm, syntax in nonterms.items():
             result[nonterm] = PatternTree.nonterm(nonterm, syntax, lexer)
         return result
 
     @staticmethod
-    def find_duplicate_nodes(trees: dict[str, PatternTree]) -> dict[str, list[PatternTree]]:
+    def find_duplicate_nodes(
+        trees: dict[str, PatternTree],
+    ) -> dict[str, list[PatternTree]]:
         name_to_nodes: dict[str, list[PatternTree]] = {}
 
         def collect(node: PatternTree) -> None:

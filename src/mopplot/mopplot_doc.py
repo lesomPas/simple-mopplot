@@ -27,7 +27,9 @@ class MopplotDocTrait(Trait):
     def check_name(self) -> None:
         for name in self.name:
             if not name.isidentifier():
-                raise MopplotDocException(f"Elements of name must be identifier, got {name!r}")
+                raise MopplotDocException(
+                    f"Elements of name must be identifier, got {name!r}"
+                )
 
     @trait_validator
     def check_init(self) -> None:
@@ -37,7 +39,14 @@ class MopplotDocTrait(Trait):
 
 
 class MopplotDoc:
-    def __init__(self, name: list[str], description: str, ast: dict[str, list[str]], command_head: str, trait_pool: list[Trait]):
+    def __init__(
+        self,
+        name: list[str],
+        description: str,
+        ast: dict[str, list[str]],
+        command_head: str,
+        trait_pool: list[Trait],
+    ):
         self.name = name
         self.description = description
         self.ast = ast
@@ -64,14 +73,18 @@ class MopplotDoc:
             old_trait_name = old_name_mapping.get(trait_name, trait_name)
             if old_trait_name.startswith("/"):
                 if command_head:
-                    raise MopplotDocException(f"Duplicate command head: '{old_trait_name}'")
+                    raise MopplotDocException(
+                        f"Duplicate command head: '{old_trait_name}'"
+                    )
                 command_head = old_trait_name
                 continue
             if old_trait_name not in trait.node:
                 raise MopplotDocException(f"Not found trait '{old_trait_name}'")
 
             try:
-                node_trait = trait.node[old_trait_name](id=trait_name, **trait.init.get(old_trait_name, {}))
+                node_trait = trait.node[old_trait_name](
+                    id=trait_name, **trait.init.get(old_trait_name, {})
+                )
             except Exception as e:
                 raise MopplotDocException("Build trait failed!") from e
             trait_pool.append(node_trait)
@@ -101,4 +114,3 @@ class MopplotDoc:
         final_dictionary["node"] = [t.get_data() for t in self.trait_pool]
         final_dictionary["ast"] = [[k] + v for k, v in self.ast.items()]
         return final_dictionary
-

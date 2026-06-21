@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 
+
 class JsonSerializer(object):
     """JSON序列化器"""
 
@@ -20,7 +21,7 @@ class JsonSerializer(object):
         if not path.exists():
             raise FileNotFoundError(f"文件不存在: {path}")
 
-        with open(path, 'r', encoding='utf-8') as f:
+        with open(path, "r", encoding="utf-8") as f:
             try:
                 return json.load(f)
             except json.JSONDecodeError as e:
@@ -32,12 +33,14 @@ class JsonSerializer(object):
         return json.dumps(data, indent=indent, ensure_ascii=ensure_ascii)
 
     @staticmethod
-    def dump(data, file_path: str | Path, indent: int = 2, ensure_ascii: bool = False) -> None:
+    def dump(
+        data, file_path: str | Path, indent: int = 2, ensure_ascii: bool = False
+    ) -> None:
         """将Python对象保存到文件"""
         path = Path(file_path)
         path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(path, 'w', encoding='utf-8') as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=indent, ensure_ascii=ensure_ascii)
 
     @staticmethod
@@ -66,12 +69,14 @@ class CompactSerializer(object):
     @staticmethod
     def dumps(data, indent: int = 0, ensure_ascii: bool = False) -> str:
         """将Python对象序列化为紧凑JSON字符串 (indent := 0)"""
-        return JsonSerializer.dumps(data, 0, ensure_ascii = ensure_ascii)
+        return JsonSerializer.dumps(data, 0, ensure_ascii=ensure_ascii)
 
     @staticmethod
-    def dump(data, file_path: str | Path, indent: int = 0, ensure_ascii: bool = False) -> None:
+    def dump(
+        data, file_path: str | Path, indent: int = 0, ensure_ascii: bool = False
+    ) -> None:
         """将Python对象保存为紧凑JSON文件 (indent := 0)"""
-        JsonSerializer.dump(data, file_path, 0, ensure_ascii = ensure_ascii)
+        JsonSerializer.dump(data, file_path, 0, ensure_ascii=ensure_ascii)
 
 
 # 快捷函数
@@ -85,7 +90,9 @@ def loads_json(json_str: str):
     return JsonSerializer.loads(json_str)
 
 
-def dump_json(data, file_path: str | Path, indent: int = 2, ensure_ascii: bool = False) -> None:
+def dump_json(
+    data, file_path: str | Path, indent: int = 2, ensure_ascii: bool = False
+) -> None:
     """保存JSON到文件"""
     JsonSerializer.dump(data, file_path, indent, ensure_ascii)
 

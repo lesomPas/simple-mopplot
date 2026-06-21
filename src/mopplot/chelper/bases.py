@@ -4,6 +4,7 @@ from mopplot.trait import FieldScope, field, Trait, TraitLib
 
 chelper = TraitLib(lib_name="chr")
 
+
 @chelper("node", collapsible=True)
 class Node(Trait):
     type: str = field(default="", scope=FieldScope.Protected)

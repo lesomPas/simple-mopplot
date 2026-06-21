@@ -112,7 +112,9 @@ class TraitField:
             if len(args) != 2:
                 return False
             key_t, value_t = args
-            return TraitField.available_type(key_t) and TraitField.available_type(value_t)
+            return TraitField.available_type(key_t) and TraitField.available_type(
+                value_t
+            )
 
         if origin is type:
             args = get_args(t)
