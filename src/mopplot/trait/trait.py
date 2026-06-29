@@ -1,10 +1,12 @@
 # created by lesomras on 2026-6-7
 from __future__ import annotations
-from typing import Optional, Callable, Any
+from typing import Optional, Callable, Any, TypeVar, Self
 
 from .field import FieldScope, ExtraMode, TraitField, Undefined
 from mopplot.exceptions import TraitFieldException, TraitException, TypeException
 
+
+T = TypeVar("T", bound="Trait")
 
 class TraitConfig:
     __slots__ = ("extra_mode",)
@@ -25,6 +27,20 @@ def trait_validator(validator: Callable[[Any], None]) -> Callable[[Any], None]:
         )
     setattr(validator, "__is_trait_validator__", None)
     return validator
+
+def trait_builder(include_key: bool = False):
+    def decorater(builder: Callable[..., T]) -> Callable[..., T]:
+        if not callable(builder):
+            raise TypeException(
+                f"builder must be callable, got {type(builder).__name__}"
+            )
+        if not isinstance(include_key, bool):
+            raise TypeException(
+                f"include_key must be bool, got {type(include_key).__name__}"
+            )
+        setattr(builder, "__trait_builder_meta__", (include_key, ))
+        return builder
+    return decorater
 
 
 class _TraitMetaclass(type):
@@ -49,6 +65,7 @@ class _TraitMetaclass(type):
         # 收集本类字段
         mcs._write_local_fields(name, namespace, cls)
         mcs._validator(namespace, cls)
+        mcs._builder(namespace, cls)
         return cls
 
     @classmethod
@@ -153,6 +170,13 @@ class _TraitMetaclass(type):
             if hasattr(v, "__is_trait_validator__"):
                 cls.__trait_validators__.append(v)  # type: ignore
 
+    @classmethod
+    def _builder(mcs, namespace, cls):
+        setattr(cls, "__trait_builders__", {})
+        for v in namespace.values():
+            if hasattr(v, "__trait_builder_meta__"):
+                cls.__trait_builders__[v.__name__] = v  # type: ignore
+
 
 class Trait(metaclass=_TraitMetaclass):
     def __init__(self, **kwargs):
@@ -200,9 +224,34 @@ class Trait(metaclass=_TraitMetaclass):
     def trait_init(self) -> None: ...
 
     @classmethod
+    def get_builder(cls, name: str = "default_init", key: Optional[str] = None) -> Callable[..., Self]:
+        assert isinstance(name, str), "type exception"
+        if name == "default_init":
+            function = cls
+        else:
+            if name not in cls.__trait_builders__: # type: ignore
+                raise TraitException(f"Not found trait builder '{name}'")
+            function = cls.__trait_builders__[name] # type: ignore
+
+        meta = getattr(function, "__trait_builder_meta__", (False, ))
+        include_key = meta[0]
+
+        if not isinstance(key, str) and key is not None:
+            raise TypeException(f"key must be str or None, got {type(key).__name__}")
+
+        if key is None and include_key:
+            raise TypeException(f"key must be str if include_key is True, got None")
+
+        if include_key:
+            def wrapper(*args, **kwargs):
+                return function(key, *args, **kwargs) # type: ignore
+            return wrapper
+        return function
+
+    @classmethod
     def provide_validator(
         cls, *, enable_generator: bool = True
-    ) -> Callable[[dict[str, Any]], None]:
+    ) -> Callable[[dict[str, Any]], bool]:
         if cls is Trait:
             raise NotImplemented
         if not isinstance(enable_generator, bool):
@@ -210,7 +259,7 @@ class Trait(metaclass=_TraitMetaclass):
                 f"enable_generator must be bool, got {type(enable_generator).__name__}"
             )
 
-        def validator(kwargs: dict[str, Any]) -> None:
+        def validator(kwargs: dict[str, Any]) -> bool:
             if not isinstance(kwargs, dict):
                 raise TypeException(
                     f"kwargs must be dict[str, Any], got {type(kwargs).__name__}"

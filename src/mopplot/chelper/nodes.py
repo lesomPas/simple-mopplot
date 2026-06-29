@@ -1,6 +1,9 @@
 # created by lesomras on 2026-6-11
 
-from mopplot.trait import field, trait_validator
+from typing import Optional
+
+from mopplot.exceptions import TypeException
+from mopplot.trait import field, trait_validator, trait_builder
 from .bases import chelper, Node, SequenceItem
 from .seq_validator import seq_validator
 
@@ -122,6 +125,25 @@ class TargetSelector(Node):
 class Text(Node):
     type: str = "TEXT"
     data: dict = field(validator=SequenceItem.provide_validator())
+
+    @trait_builder(include_key=True)
+    def i18n(name: str, description: str, brief: Optional[str] = None) -> "Text":
+        if not isinstance(description, str):
+            raise TypeException(f"translation must be str, got {type(description).__name__}")
+        if brief is None:
+            return Text(
+                description=description,
+                data={"name": name, "description": description}
+            )
+
+        if not isinstance(brief, str):
+            raise TypeException(f"brief must be str or None, got {type(brief).__name__}")
+
+        return Text(
+            brief=brief,
+            description=description,
+            data={"name": name, "description": description}
+        )
 
 
 @chelper("range")

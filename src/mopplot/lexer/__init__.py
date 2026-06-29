@@ -14,3 +14,5 @@ __all__ = [
     "PatternLexer",
     "DefaultPatternLexer",
 ]
+
+default_lexer: PatternLexer = DefaultPatternLexer()

@@ -7,12 +7,11 @@ from typing import Any, Optional
 from mopplot.exceptions import MopplotDocException
 from mopplot.trait import field, Trait, trait_validator, TraitConfig, ExtraMode
 from mopplot.chelper import chelper
-from mopplot.syntax.tree_builder import AstTreeBuilder
-
+from mopplot.syntax.syntax_tree import SyntaxTree
 
 class MopplotDocTrait(Trait):
     trait_config = TraitConfig(
-        extra_mode=ExtraMode.Ignore,
+        extra_mode=ExtraMode.Allow,
     )
 
     name: list[str]
@@ -21,7 +20,7 @@ class MopplotDocTrait(Trait):
     node: dict[str, type[Trait]] = field(
         generator=lambda d: {k: chelper.get_trait(v) for k, v in d.items()},
     )
-    init: dict[str, dict[str, Any]]
+    # default_init: dict[str, dict[str, Any]]
 
     @trait_validator
     def check_name(self) -> None:
@@ -31,86 +30,118 @@ class MopplotDocTrait(Trait):
                     f"Elements of name must be identifier, got {name!r}"
                 )
 
-    @trait_validator
-    def check_init(self) -> None:
-        for i in self.init.values():
-            if "id" in i:
-                raise MopplotDocException(f"Keyboard 'id' can't be overrided, at {i!r}")
-
-
 class MopplotDoc:
     def __init__(
         self,
         name: list[str],
         description: str,
-        ast: dict[str, list[str]],
-        command_head: str,
-        trait_pool: list[Trait],
+        syntax: list[str],
+        trait_pool: dict[str, Trait],
     ):
         self.name = name
         self.description = description
-        self.ast = ast
-        self.command_head = command_head
+        self.syntax = syntax
         self.trait_pool = trait_pool
 
     @classmethod
     def from_dict(cls, data: dict) -> "MopplotDoc":
-        trait = MopplotDocTrait(**data)
-        description = trait.description if trait.contains("description") else ""
+        doc_trait = MopplotDocTrait(**data)
+        doc_name, doc_description = cls._get_name_description(doc_trait)
 
         try:
-            syntax_result = AstTreeBuilder(trait.syntax).build()
+            doc_syntax, nodes = cls._get_paths_nodes(doc_trait)
         except Exception as e:
             raise MopplotDocException("Build ast failed!") from e
 
-        old_name_mapping = cls.old_name_mapping(syntax_result.rename_mapping)
-        used_trait = cls.used_trait(syntax_result.ast)
+        cls._precheck(doc_trait, nodes)
+        builders, datas = cls._build_trait_info(doc_trait)
+        doc_trait_pool = cls._build_trait_pool(doc_trait, nodes, builders, datas)
 
-        command_head: Optional[str] = None
-        trait_pool = []
+        return cls(doc_name, doc_description, doc_syntax, doc_trait_pool)
 
-        for trait_name in used_trait:
-            old_trait_name = old_name_mapping.get(trait_name, trait_name)
-            if old_trait_name.startswith("/"):
-                if command_head:
-                    raise MopplotDocException(
-                        f"Duplicate command head: '{old_trait_name}'"
-                    )
-                command_head = old_trait_name
+    @staticmethod
+    def _get_name_description(trait: MopplotDocTrait) -> tuple[list[str], str]:
+        description = trait.description if trait.contains("description") else ""
+        return trait.name, description
+
+    @staticmethod
+    def _get_paths_nodes(trait: MopplotDocTrait) -> tuple[list[str], list[str]]:
+        tree_children = SyntaxTree.resolve_tree_children(trait.syntax)
+        paths = SyntaxTree.original_tree(tree_children).get_all_paths()
+        nodes = SyntaxTree.resolve_nodes(tree_children)
+        return paths, nodes
+
+    @staticmethod
+    def _precheck(trait: MopplotDocTrait, nodes: list[str]) -> None:
+        has_command_head = False
+
+        # 预检查
+        for node_name in nodes:
+            if node_name.startswith("/"):
+                if has_command_head:
+                    raise MopplotDocException(f"Duplicate command head: '{node_name}'")
+                has_command_head = True
                 continue
-            if old_trait_name not in trait.node:
-                raise MopplotDocException(f"Not found trait '{old_trait_name}'")
 
-            try:
-                node_trait = trait.node[old_trait_name](
-                    id=trait_name, **trait.init.get(old_trait_name, {})
-                )
-            except Exception as e:
-                raise MopplotDocException("Build trait failed!") from e
-            trait_pool.append(node_trait)
+            if node_name not in trait.node:
+                raise MopplotDocException(f"Not found trait '{node_name}'")
 
-        if not command_head:
+        if not has_command_head:
             raise MopplotDocException("Excepted a command head")
 
-        return cls(trait.name, description, syntax_result.ast, command_head, trait_pool)
+    @staticmethod
+    def _build_trait_info(trait: MopplotDocTrait) -> tuple:
+        trait_builder: dict[str, str] = {}
+        trait_data: dict[str, dict[str, Any]] = {}
+
+        for builder_name, builder_data in trait.__trait_extra__.items(): # type: ignore
+            if not isinstance(builder_data, dict):
+                raise MopplotDocException(
+                    f"The value in '{builder_name}' must be dict[str, Any], got {type(builder_data).__name__} in builder '{builder_name}'"
+                )
+            for node_name, node_data in builder_data.items():
+                assert isinstance(node_name, str), f"The key in builder data '{builder_name}' must be str, got {type(node_name).__name__}"
+                assert all(isinstance(k, str) for k in node_data), f"The key in node data '{node_name}' must be str"
+
+                if node_name in trait_builder:
+                    raise MopplotDocException(f"Node '{node_name}' has duplicate trait builder '{trait_builder[node_name]}', got '{builder_name}'")
+                trait_builder[node_name] = builder_name
+                trait_data[node_name] = node_data
+
+        return trait_builder, trait_data
 
     @staticmethod
-    def old_name_mapping(rename_mapping: dict[str, dict[str, str]]) -> dict[str, str]:
-        result = {}
-        for old_name, mapping in rename_mapping.items():
-            for new_name in mapping.values():
-                result[new_name] = old_name
-        return result
+    def _build_trait_pool(doc_trait: MopplotDocTrait, nodes: list[str], builders, datas) -> dict[str, Trait]:
+        trait_pool: dict[str, Trait] = {}
+        for node_name in nodes:
+            if node_name.startswith("/"):
+                continue
 
-    @staticmethod
-    def used_trait(original_ast: dict[str, list[str]]) -> list[str]:
-        return list(original_ast.keys())
+            trait = doc_trait.node[node_name]
+            if node_name in builders:
+                try:
+                    builder_function = trait.get_builder(builders[node_name], key=node_name)
+                except Exception as e:
+                    raise MopplotDocException(f"Not found builder '{builders[node_name]}' in trait '{getattr(trait, '__trait_name__', trait.__name__)}'") from e
+
+                try:
+                    trait_obj = builder_function(**datas[node_name])
+                except Exception as e:
+                    raise MopplotDocException(f"Trait builder '{builders[node_name]}' in trait '{getattr(trait, '__trait_name__', trait.__name__)}' failed") from e
+            else:
+                try:
+                    trait_obj = trait()
+                except Exception as e:
+                    raise MopplotDocException(f"default_init in trait '{getattr(trait, '__trait_name__', trait.__name__)}' failed, maybe you need to provide args") from e
+
+            trait_pool[node_name] = trait_obj
+
+        return trait_pool
 
     def to_dict(self) -> dict:
         final_dictionary = {}
         final_dictionary["name"] = self.name
         final_dictionary["description"] = self.description
-        final_dictionary["start"] = self.ast.pop(self.command_head)
-        final_dictionary["node"] = [t.get_data() for t in self.trait_pool]
-        final_dictionary["ast"] = [[k] + v for k, v in self.ast.items()]
+        final_dictionary["syntax"] = self.syntax
+        final_dictionary["node"] = {k: v.get_data() for k, v in self.trait_pool.items()}
         return final_dictionary
